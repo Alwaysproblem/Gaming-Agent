@@ -32,7 +32,7 @@ target_in = tf.placeholder("float", [None])
 
 # TODO: Define Network Graph
 tf.set_random_seed(1)
-learning_rate = 0.001
+learning_rate = 0.01
 hidden_units = 14
 ReplayMemory_size = 50
 ReplayMemory = np.zeros((ReplayMemory_size, STATE_DIM)) # just for experience replay.
