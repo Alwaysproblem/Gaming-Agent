@@ -134,7 +134,6 @@ for episode in range(EPISODE):
             e_params = tf.get_collection('eval_net_params')
             replace_target_op = [tf.assign(t, e) for t, e in zip(t_params, e_params)]
             session.run(replace_target_op)
-            print(episode * step)
 
         # TODO: Calculate the target q-value.
         # hint1: Bellman
