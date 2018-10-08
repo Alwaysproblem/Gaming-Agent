@@ -32,13 +32,13 @@ target_in = tf.placeholder("float", [None])
 
 # TODO: Define Network Graph
 tf.set_random_seed(1)
-learning_rate = 0.01
+learning_rate = 0.1
 hidden_units = 14
-fix_target_epsiodes = 100
+fix_target_epsiodes = 5000
 ReplayMemory_size = 50
 ReplayMemory = np.zeros((ReplayMemory_size, STATE_DIM)) # just for experience replay.
 
-def NGraph(state_in, params_name, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 14):
+def NGraph(state_in, params_name, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 20):
     with tf.variable_scope("layer1"):
         W1 = tf.get_variable(
                 "W1", 
@@ -129,11 +129,12 @@ for episode in range(EPISODE):
             state_in: [next_state]
         })
 
-        if step % fix_target_epsiodes == 0:
+        if episode * step % fix_target_epsiodes == 0 and 0 not in (episode, step):
             t_params = tf.get_collection('target_net_params')
             e_params = tf.get_collection('eval_net_params')
             replace_target_op = [tf.assign(t, e) for t, e in zip(t_params, e_params)]
             session.run(replace_target_op)
+            print(episode * step)
 
         # TODO: Calculate the target q-value.
         # hint1: Bellman
@@ -146,6 +147,7 @@ for episode in range(EPISODE):
             action_in: [action],
             state_in: [state]
         })
+
         # Update
         state = next_state
         if done:
