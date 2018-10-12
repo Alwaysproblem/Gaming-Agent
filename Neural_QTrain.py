@@ -115,11 +115,13 @@ for episode in range(EPISODE):
     epsilon -= epsilon / EPSILON_DECAY_STEPS
 
     # Move through env according to e-greedy policy
+    refresh_q_frequency = 10
     for step in range(STEP):
         action = explore(state, epsilon)
         next_state, reward, done, _ = env.step(np.argmax(action))
-
-        nextstate_q_values = q_values.eval(feed_dict={
+        if step % refresh_q_frequency == 0:
+            clone_q_values = tf.identity(q_values)
+        nextstate_q_values = clone_q_values.eval(feed_dict={
             state_in: [next_state]
         })
 
