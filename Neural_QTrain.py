@@ -126,7 +126,8 @@ for episode in range(EPISODE):
         # TODO: Calculate the target q-value.
         # hint1: Bellman
         # hint2: consider if the episode has terminated
-        target = reward + GAMMA * (1 - int(done)) * np.max(nextstate_q_values)
+        done_batch = int(done)
+        target = reward + GAMMA * (1 - done_batch) * np.max(nextstate_q_values) # need axis = 1
 
         # Do one training step
         session.run([optimizer], feed_dict={
