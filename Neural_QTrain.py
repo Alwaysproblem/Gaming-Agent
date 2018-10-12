@@ -12,8 +12,8 @@ TEST = 10  # The number of tests to run every TEST_FREQUENCY episodes
 TEST_FREQUENCY = 100  # Num episodes to run before visualizing test accuracy
 
 # TODO: HyperParameters
-GAMMA =  0.9 # discount factor
-INITIAL_EPSILON =  0.6 # starting value of epsilon
+GAMMA =  0.95 # discount factor
+INITIAL_EPSILON =  0.9 # starting value of epsilon
 FINAL_EPSILON =  0.1 # final value of epsilon
 EPSILON_DECAY_STEPS = 100 # decay period
 
@@ -31,13 +31,40 @@ action_in = tf.placeholder("float", [None, ACTION_DIM])
 target_in = tf.placeholder("float", [None])
 
 # TODO: Define Network Graph
-tf.set_random_seed(1)
+REWARD_DIM = 1
+DONE_DIM = 1
 learning_rate = 0.01
-hidden_units = 14
-ReplayMemory_size = 50
-ReplayMemory = np.zeros((ReplayMemory_size, STATE_DIM)) # just for experience replay.
+hidden_units = 20
+rate_sam = 45
+refresh_target = 15
+ReplayMemory_size = 1000
+sample_num = round(rate_sam  * ReplayMemory_size / 100)
+ReplayMemory = np.zeros((ReplayMemory_size, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
+
+def Store_State(ReplayMemory, ReplayMemory_size, s, a, r, s_, done):
+    elements = np.expand_dims(np.hstack((s, a, r, s_, done)), axis = 0)
+    ReplayMemory = np.concatenate((ReplayMemory, elements), 0)
+    if len(ReplayMemory) > ReplayMemory_size:
+        ReplayMemory = np.delete(ReplayMemory, 0, axis=0)
+    full = any(ReplayMemory[0, :])
+    return ReplayMemory, full
+
+def Sample_State(ReplayMemory, sample_num, replace = False):
+    ind = np.random.choice(range(len(ReplayMemory)), sample_num, replace = replace)
+    Sample_batch = ReplayMemory[ind, :]
+    s = Sample_batch[:, : STATE_DIM]
+    a = Sample_batch[:, STATE_DIM: STATE_DIM + ACTION_DIM]
+    r = Sample_batch[:, STATE_DIM + ACTION_DIM : STATE_DIM + ACTION_DIM + REWARD_DIM]
+    s_ = Sample_batch[:, STATE_DIM + ACTION_DIM + REWARD_DIM : STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM]
+    done = Sample_batch[:, -1:]
+
+    return s, a, r, s_, done
 
 def NGraph(state_in, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 14):
+    """
+    the input state is row vector.
+    the output is also a vector.
+    """
     with tf.variable_scope("eval_net"):
         with tf.variable_scope("layer1"):
             W1 = tf.get_variable(
@@ -72,6 +99,7 @@ def NGraph(state_in, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_unit
 
 # TODO: Network outputs
 q_values = NGraph(state_in)
+q_target = tf.identity(q_values)
 q_action = tf.reduce_sum(tf.multiply(q_values, action_in), reduction_indices=1)
 
 # TODO: Loss/Optimizer Definition
@@ -115,28 +143,45 @@ for episode in range(EPISODE):
     epsilon -= epsilon / EPSILON_DECAY_STEPS
 
     # Move through env according to e-greedy policy
-    refresh_q_frequency = 10
     for step in range(STEP):
         action = explore(state, epsilon)
         next_state, reward, done, _ = env.step(np.argmax(action))
-        if step % refresh_q_frequency == 0:
-            clone_q_values = tf.identity(q_values)
-        nextstate_q_values = clone_q_values.eval(feed_dict={
-            state_in: [next_state]
-        })
 
-        # TODO: Calculate the target q-value.
-        # hint1: Bellman
-        # hint2: consider if the episode has terminated
-        done_batch = int(done)
-        target = reward + GAMMA * (1 - done_batch) * np.max(nextstate_q_values) # need axis = 1
+        # store the state as tuple (s, a, r, s_, done)
+        ReplayMemory, full = Store_State(
+                                ReplayMemory,
+                                ReplayMemory_size,
+                                state,
+                                action,
+                                reward,
+                                next_state,
+                                int(done)
+                            )
 
-        # Do one training step
-        session.run([optimizer], feed_dict={
-            target_in: [target],
-            action_in: [action],
-            state_in: [state]
-        })
+        if full == True and sample_num != 0:
+
+            s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, sample_num)
+
+            nextstate_q_values = q_target.eval(feed_dict={
+                state_in: ns_batch
+            })
+
+            # TODO: Calculate the target q-value.
+            # hint1: Bellman
+            # hint2: consider if the episode has terminated
+            target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(nextstate_q_values, axis=1, keepdims=1) # need axis = 1
+
+            target = target_batch.squeeze()
+
+            # Do one training step
+            loss_ , _ = session.run([loss, optimizer], feed_dict={
+                target_in: target,
+                action_in: a_batch,
+                state_in: s_batch
+            })
+
+            if step % refresh_target == 0:
+                q_target = tf.identity(q_values)
 
         # Update
         state = next_state
@@ -159,6 +204,7 @@ for episode in range(EPISODE):
                 if done:
                     break
         ave_reward = total_reward / TEST
+        # print(loss_)
         print('episode:', episode, 'epsilon:', epsilon, 'Evaluation '
                                                         'Average Reward:', ave_reward)
 
