@@ -13,7 +13,7 @@ TEST_FREQUENCY = 100  # Num episodes to run before visualizing test accuracy
 
 # TODO: HyperParameters
 GAMMA =  0.9 # discount factor
-INITIAL_EPSILON =  0.6 # starting value of epsilon
+INITIAL_EPSILON =  1 # starting value of epsilon
 FINAL_EPSILON =  0.1 # final value of epsilon
 EPSILON_DECAY_STEPS = 100 # decay period
 
@@ -31,13 +31,39 @@ action_in = tf.placeholder("float", [None, ACTION_DIM])
 target_in = tf.placeholder("float", [None])
 
 # TODO: Define Network Graph
+REWARD_DIM = 1
+DONE_DIM = 1
+sample_num = 20
 tf.set_random_seed(1)
 learning_rate = 0.01
 hidden_units = 14
 ReplayMemory_size = 50
-ReplayMemory = np.zeros((ReplayMemory_size, STATE_DIM)) # just for experience replay.
+ReplayMemory = np.zeros((ReplayMemory_size, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
+
+def Store_State(ReplayMemory, ReplayMemory_size, s, a, r, s_, done):
+    elements = np.expand_dims(np.hstack((s, a, r, s_, done)), axis = 0)
+    ReplayMemory = np.concatenate((ReplayMemory, elements), 0)
+    if len(ReplayMemory) > ReplayMemory_size:
+        ReplayMemory = np.delete(ReplayMemory, 0, axis=0)
+    full = any(ReplayMemory[0, :])
+    return ReplayMemory, full
+
+def Sample_State(ReplayMemory, sample_num, replace = False):
+    ind = np.random.choice(range(len(ReplayMemory)), sample_num, replace = replace)
+    Sample_batch = ReplayMemory[ind, :]
+    s = Sample_batch[:, : STATE_DIM]
+    a = Sample_batch[:, STATE_DIM: STATE_DIM + ACTION_DIM]
+    r = Sample_batch[:, STATE_DIM + ACTION_DIM : STATE_DIM + ACTION_DIM + REWARD_DIM]
+    s_ = Sample_batch[:, STATE_DIM + ACTION_DIM + REWARD_DIM : STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM]
+    done = Sample_batch[:, -1:]
+
+    return s, a, r, s_, done
 
 def NGraph(state_in, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 14):
+    """
+    the input state is row vector.
+    the output is also a vector.
+    """
     with tf.variable_scope("eval_net"):
         with tf.variable_scope("layer1"):
             W1 = tf.get_variable(
@@ -119,22 +145,39 @@ for episode in range(EPISODE):
         action = explore(state, epsilon)
         next_state, reward, done, _ = env.step(np.argmax(action))
 
-        nextstate_q_values = q_values.eval(feed_dict={
-            state_in: [next_state]
-        })
+        # store the state as tuple (s, a, r, s_, done)
+        ReplayMemory, full = Store_State(
+                                ReplayMemory,
+                                ReplayMemory_size,
+                                state,
+                                action,
+                                reward,
+                                next_state,
+                                int(done)
+                            )
 
-        # TODO: Calculate the target q-value.
-        # hint1: Bellman
-        # hint2: consider if the episode has terminated
-        done_batch = int(done)
-        target = reward + GAMMA * (1 - done_batch) * np.max(nextstate_q_values) # need axis = 1
+        if full == True:
 
-        # Do one training step
-        session.run([optimizer], feed_dict={
-            target_in: [target],
-            action_in: [action],
-            state_in: [state]
-        })
+            s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, sample_num)
+
+            nextstate_q_values = q_values.eval(feed_dict={
+                state_in: ns_batch
+            })
+
+            # TODO: Calculate the target q-value.
+            # hint1: Bellman
+            # hint2: consider if the episode has terminated
+            tmp = np.max(nextstate_q_values, axis=1)
+            target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(nextstate_q_values, axis=1, keepdims=1) # need axis = 1
+
+            target = target_batch.squeeze()
+
+            # Do one training step
+            session.run([optimizer], feed_dict={
+                target_in: target,
+                action_in: a_batch,
+                state_in: s_batch
+            })
 
         # Update
         state = next_state
