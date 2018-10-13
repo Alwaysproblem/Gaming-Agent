@@ -12,7 +12,7 @@ TEST = 10  # The number of tests to run every TEST_FREQUENCY episodes
 TEST_FREQUENCY = 100  # Num episodes to run before visualizing test accuracy
 
 # TODO: HyperParameters
-GAMMA =  0.5 # discount factor
+GAMMA =  0.99 # discount factor
 INITIAL_EPSILON =  0.9 # starting value of epsilon
 FINAL_EPSILON =  0.1 # final value of epsilon
 EPSILON_DECAY_STEPS = 100 # decay period
@@ -31,11 +31,13 @@ action_in = tf.placeholder("float", [None, ACTION_DIM])
 target_in = tf.placeholder("float", [None])
 
 # TODO: Define Network Graph
+# np.random.seed(100)
+# tf.set_random_seed(100)
 REWARD_DIM = 1
 DONE_DIM = 1
 learning_rate = 0.01
 hidden_units = 20
-rate_sam = 45
+rate_sam = 70
 refresh_target = 15
 ReplayMemory_size = 1000
 sample_num = round(rate_sam  * ReplayMemory_size / 100)
@@ -95,6 +97,7 @@ def NGraph(state_in, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_unit
                     collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
                 )
             output = tf.matmul(layer1, W2) + b2
+            
     return output
 
 # TODO: Network outputs
