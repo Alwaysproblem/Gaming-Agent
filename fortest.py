@@ -7,12 +7,13 @@ STATE_DIM, ACTION_DIM, REWARD_DIM, DONE_DIM = 4, 2, 1, 1
 def Store_State(ReplayMemory, ReplayMemory_size, s, a, r, s_, done):
     elements = np.expand_dims(np.hstack((s, a, r, s_, done)), axis = 0)
     ReplayMemory = np.concatenate((ReplayMemory, elements), 0)
-    if len(ReplayMemory) > ReplayMemory_size:
+    if not any(ReplayMemory[0, :]) or len(ReplayMemory) > ReplayMemory_size:
         ReplayMemory = np.delete(ReplayMemory, 0, axis=0)
     full = any(ReplayMemory[0, :])
     return ReplayMemory, full
 
-def Sample_State(ReplayMemory, sample_num, replace = False):
+def Sample_State(ReplayMemory, sample_percent, replace = False):
+    sample_num = round(len(ReplayMemory) * sample_percent)
     ind = np.random.choice(range(len(ReplayMemory)), sample_num, replace = replace)
     Sample_batch = ReplayMemory[ind, :]
     s = Sample_batch[:, : STATE_DIM]
@@ -43,7 +44,7 @@ S3 = [1, 7, 3, 4]
 A3 = [1, 0]
 S_3 = [2, 8, 4, 1]
 
-R = np.zeros((3, STATE_DIM+ACTION_DIM+REWARD_DIM+DONE_DIM+STATE_DIM))
+R = np.zeros((1, STATE_DIM+ACTION_DIM+REWARD_DIM+DONE_DIM+STATE_DIM))
 
 R, full = Store_State(R, 3, S, A, r, S_, Done)
 print(R, full)
@@ -53,7 +54,7 @@ R, full= Store_State(R, 3, S2, A2, r, S_2, Done)
 print(R, full)
 
 
-s, a, re, s_, done = Sample_State(R, 2)
+s, a, re, s_, done = Sample_State(R, 0.3)
 
 print(f"s: \n{s}")
 print(f"a: \n{a}")

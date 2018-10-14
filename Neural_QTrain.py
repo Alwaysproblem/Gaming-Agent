@@ -37,21 +37,21 @@ REWARD_DIM = 1
 DONE_DIM = 1
 learning_rate = 0.01
 hidden_units = 20
-rate_sam = 70
+rate_sam = 0.3
 refresh_target = 15
-ReplayMemory_size = 1000
-sample_num = round(rate_sam  * ReplayMemory_size / 100)
+ReplayMemory_size = 10000
 ReplayMemory = np.zeros((ReplayMemory_size, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
 
 def Store_State(ReplayMemory, ReplayMemory_size, s, a, r, s_, done):
     elements = np.expand_dims(np.hstack((s, a, r, s_, done)), axis = 0)
     ReplayMemory = np.concatenate((ReplayMemory, elements), 0)
-    if len(ReplayMemory) > ReplayMemory_size:
+    if not any(ReplayMemory[0, :]) or len(ReplayMemory) > ReplayMemory_size:
         ReplayMemory = np.delete(ReplayMemory, 0, axis=0)
     full = any(ReplayMemory[0, :])
     return ReplayMemory, full
 
-def Sample_State(ReplayMemory, sample_num, replace = False):
+def Sample_State(ReplayMemory, sample_percent, replace = False):
+    sample_num = round(len(ReplayMemory) * sample_percent)
     ind = np.random.choice(range(len(ReplayMemory)), sample_num, replace = replace)
     Sample_batch = ReplayMemory[ind, :]
     s = Sample_batch[:, : STATE_DIM]
@@ -161,30 +161,28 @@ for episode in range(EPISODE):
                                 int(done)
                             )
 
-        if full == True and sample_num != 0:
+        s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, rate_sam)
 
-            s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, sample_num)
+        nextstate_q_values = q_target.eval(feed_dict={
+            state_in: ns_batch
+        })
 
-            nextstate_q_values = q_target.eval(feed_dict={
-                state_in: ns_batch
-            })
+        # TODO: Calculate the target q-value.
+        # hint1: Bellman
+        # hint2: consider if the episode has terminated
+        target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(nextstate_q_values, axis=1, keepdims=1) # need axis = 1
 
-            # TODO: Calculate the target q-value.
-            # hint1: Bellman
-            # hint2: consider if the episode has terminated
-            target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(nextstate_q_values, axis=1, keepdims=1) # need axis = 1
+        target = target_batch.squeeze()
 
-            target = target_batch.squeeze()
+        # Do one training step
+        loss_ , _ = session.run([loss, optimizer], feed_dict={
+            target_in: target,
+            action_in: a_batch,
+            state_in: s_batch
+        })
 
-            # Do one training step
-            loss_ , _ = session.run([loss, optimizer], feed_dict={
-                target_in: target,
-                action_in: a_batch,
-                state_in: s_batch
-            })
-
-            if step % refresh_target == 0:
-                q_target = tf.identity(q_values)
+        if step % refresh_target == 0:
+            q_target = tf.identity(q_values)
 
         # Update
         state = next_state
