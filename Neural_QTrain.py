@@ -35,10 +35,10 @@ target_in = tf.placeholder("float", [None])
 # tf.set_random_seed(100)
 REWARD_DIM = 1
 DONE_DIM = 1
-learning_rate = 0.01
+learning_rate = 0.001
 hidden_units = 20
-rate_sam = 0.7
-refresh_target = 30
+rate_sam = 0.6
+refresh_target = 25
 ReplayMemory_size = 10000
 ReplayMemory = np.zeros((1, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
 
@@ -160,7 +160,7 @@ for episode in range(EPISODE):
                                 next_state,
                                 int(done)
                             )
-        if len(ReplayMemory) > round(1/rate_sam):
+        if len(ReplayMemory) > round(1/rate_sam) and episode < 120:
             s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, rate_sam)
 
             nextstate_q_values = q_target.eval(feed_dict={
