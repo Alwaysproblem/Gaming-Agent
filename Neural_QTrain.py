@@ -12,7 +12,7 @@ TEST = 10  # The number of tests to run every TEST_FREQUENCY episodes
 TEST_FREQUENCY = 100  # Num episodes to run before visualizing test accuracy
 
 # TODO: HyperParameters
-GAMMA =  0.99 # discount factor
+GAMMA =  0.9 # discount factor
 INITIAL_EPSILON =  0.9 # starting value of epsilon
 FINAL_EPSILON =  0.1 # final value of epsilon
 EPSILON_DECAY_STEPS = 100 # decay period
@@ -37,10 +37,10 @@ REWARD_DIM = 1
 DONE_DIM = 1
 learning_rate = 0.01
 hidden_units = 20
-rate_sam = 0.3
-refresh_target = 15
+rate_sam = 0.7
+refresh_target = 45
 ReplayMemory_size = 10000
-ReplayMemory = np.zeros((ReplayMemory_size, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
+ReplayMemory = np.zeros((1, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
 
 def Store_State(ReplayMemory, ReplayMemory_size, s, a, r, s_, done):
     elements = np.expand_dims(np.hstack((s, a, r, s_, done)), axis = 0)
@@ -160,29 +160,29 @@ for episode in range(EPISODE):
                                 next_state,
                                 int(done)
                             )
+        if len(ReplayMemory) > round(1/rate_sam):
+            s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, rate_sam)
 
-        s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, rate_sam)
+            nextstate_q_values = q_target.eval(feed_dict={
+                state_in: ns_batch
+            })
 
-        nextstate_q_values = q_target.eval(feed_dict={
-            state_in: ns_batch
-        })
+            # TODO: Calculate the target q-value.
+            # hint1: Bellman
+            # hint2: consider if the episode has terminated
+            target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(nextstate_q_values, axis=1, keepdims=1) # need axis = 1
 
-        # TODO: Calculate the target q-value.
-        # hint1: Bellman
-        # hint2: consider if the episode has terminated
-        target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(nextstate_q_values, axis=1, keepdims=1) # need axis = 1
+            target = target_batch.squeeze() if target_batch.shape != (1, 1) else [target_batch.squeeze()]
 
-        target = target_batch.squeeze()
+            # Do one training step
+            loss_ , _ = session.run([loss, optimizer], feed_dict={
+                target_in: target,
+                action_in: a_batch,
+                state_in: s_batch
+            })
 
-        # Do one training step
-        loss_ , _ = session.run([loss, optimizer], feed_dict={
-            target_in: target,
-            action_in: a_batch,
-            state_in: s_batch
-        })
-
-        if step % refresh_target == 0:
-            q_target = tf.identity(q_values)
+            if step % refresh_target == 0:
+                q_target = tf.identity(q_values)
 
         # Update
         state = next_state
@@ -205,7 +205,7 @@ for episode in range(EPISODE):
                 if done:
                     break
         ave_reward = total_reward / TEST
-        # print(loss_)
+        print(f"the lost is: {loss_}")
         print('episode:', episode, 'epsilon:', epsilon, 'Evaluation '
                                                         'Average Reward:', ave_reward)
 
