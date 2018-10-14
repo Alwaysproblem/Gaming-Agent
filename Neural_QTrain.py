@@ -38,7 +38,7 @@ DONE_DIM = 1
 learning_rate = 0.01
 hidden_units = 20
 rate_sam = 0.7
-refresh_target = 45
+refresh_target = 30
 ReplayMemory_size = 10000
 ReplayMemory = np.zeros((1, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
 
