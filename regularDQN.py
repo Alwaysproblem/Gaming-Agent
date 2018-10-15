@@ -13,8 +13,8 @@ TEST_FREQUENCY = 100  # Num episodes to run before visualizing test accuracy
 
 # TODO: HyperParameters
 GAMMA =  0.9 # discount factor
-INITIAL_EPSILON =  0.2 # starting value of epsilon
-FINAL_EPSILON =  0.05 # final value of epsilon
+INITIAL_EPSILON =  0.5 # starting value of epsilon
+FINAL_EPSILON =  0.1 # final value of epsilon
 EPSILON_DECAY_STEPS = 100 # decay period
 
 # Create environment
@@ -44,7 +44,7 @@ rate_sam = 0.1
 refresh_target = 50
 ReplayMemory_size = 10000
 ReplayMemory = np.zeros((1, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
-lambd = 0.05
+lambd = 0.5
 
 def Store_State(ReplayMemory, ReplayMemory_size, s, a, r, s_, done):
     elements = np.expand_dims(np.hstack((s, a, r, s_, done)), axis = 0)
