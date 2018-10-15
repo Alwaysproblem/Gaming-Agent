@@ -38,10 +38,10 @@ target_in = tf.placeholder("float", [None])
 
 REWARD_DIM = 1
 DONE_DIM = 1
-learning_rate = 0.01
+learning_rate = 0.001
 hidden_units = 20
-rate_sam = 0.6
-refresh_target = 15
+rate_sam = 0.1
+refresh_target = 50
 ReplayMemory_size = 10000
 ReplayMemory = np.zeros((1, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
 lambd = 0.1
@@ -50,7 +50,10 @@ def Store_State(ReplayMemory, ReplayMemory_size, s, a, r, s_, done):
     elements = np.expand_dims(np.hstack((s, a, r, s_, done)), axis = 0)
     ReplayMemory = np.concatenate((ReplayMemory, elements), 0)
     if not any(ReplayMemory[0, :]) or len(ReplayMemory) > ReplayMemory_size:
-        ReplayMemory = np.delete(ReplayMemory, 0, axis=0)
+        if not any(ReplayMemory[0, :]):
+            ReplayMemory = np.delete(ReplayMemory, 0, axis=0)
+        else:
+            ReplayMemory = np.delete(ReplayMemory, np.random.randint(list(range(len(ReplayMemory)))), axis=0)
     full = any(ReplayMemory[0, :])
     return ReplayMemory, full
 
@@ -178,7 +181,12 @@ for episode in range(EPISODE):
             target = target_batch.squeeze() if target_batch.shape != (1, 1) else [target_batch.squeeze()]
 
             # Do one training step
-            loss_ , _ = session.run([loss, optimizer], feed_dict={
+            # loss_ , _ = session.run([loss, optimizer], feed_dict={
+            #     target_in: target,
+            #     action_in: a_batch,
+            #     state_in: s_batch
+            # })
+            session.run([optimizer], feed_dict={
                 target_in: target,
                 action_in: a_batch,
                 state_in: s_batch
@@ -208,7 +216,7 @@ for episode in range(EPISODE):
                 if done:
                     break
         ave_reward = total_reward / TEST
-        print(f"the lost is: {loss_}")
+        # print(f"the lost is: {loss_}")
         print('episode:', episode, 'epsilon:', epsilon, 'Evaluation '
                                                         'Average Reward:', ave_reward)
 
