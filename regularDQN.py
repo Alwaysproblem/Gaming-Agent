@@ -13,8 +13,8 @@ TEST_FREQUENCY = 100  # Num episodes to run before visualizing test accuracy
 
 # TODO: HyperParameters
 GAMMA =  0.9 # discount factor
-INITIAL_EPSILON =  0.9 # starting value of epsilon
-FINAL_EPSILON =  0.1 # final value of epsilon
+INITIAL_EPSILON =  0.2 # starting value of epsilon
+FINAL_EPSILON =  0.05 # final value of epsilon
 EPSILON_DECAY_STEPS = 100 # decay period
 
 # Create environment
@@ -38,13 +38,13 @@ target_in = tf.placeholder("float", [None])
 
 REWARD_DIM = 1
 DONE_DIM = 1
-learning_rate = 0.001
-hidden_units = 20
+learning_rate = 0.01
+hidden_units = 30
 rate_sam = 0.1
 refresh_target = 50
 ReplayMemory_size = 10000
 ReplayMemory = np.zeros((1, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
-lambd = 0.1
+lambd = 0.05
 
 def Store_State(ReplayMemory, ReplayMemory_size, s, a, r, s_, done):
     elements = np.expand_dims(np.hstack((s, a, r, s_, done)), axis = 0)
@@ -53,7 +53,7 @@ def Store_State(ReplayMemory, ReplayMemory_size, s, a, r, s_, done):
         if not any(ReplayMemory[0, :]):
             ReplayMemory = np.delete(ReplayMemory, 0, axis=0)
         else:
-            ReplayMemory = np.delete(ReplayMemory, np.random.randint(list(range(len(ReplayMemory)))), axis=0)
+            ReplayMemory = np.delete(ReplayMemory, np.random.randint(len(ReplayMemory)), axis=0)
     full = any(ReplayMemory[0, :])
     return ReplayMemory, full
 
@@ -166,7 +166,7 @@ for episode in range(EPISODE):
                                 next_state,
                                 int(done)
                             )
-        if len(ReplayMemory) > round(1/rate_sam):
+        if len(ReplayMemory) > round(1/rate_sam) and epsilon > FINAL_EPSILON:
             s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, rate_sam)
 
             nextstate_q_values = q_target.eval(feed_dict={
