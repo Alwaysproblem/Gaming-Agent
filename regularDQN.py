@@ -31,7 +31,7 @@ action_in = tf.placeholder("float", [None, ACTION_DIM])
 target_in = tf.placeholder("float", [None])
 
 # TODO: Define Network Graph
-# np.random.seed(2538054150)
+np.random.seed(2771124849)
 # tf.set_random_seed(100)
 # random.seed(123)
 # print(np.random.get_state()[1][0])
