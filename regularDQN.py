@@ -1,4 +1,3 @@
-
 import gym
 import tensorflow as tf
 import numpy as np
@@ -32,16 +31,20 @@ action_in = tf.placeholder("float", [None, ACTION_DIM])
 target_in = tf.placeholder("float", [None])
 
 # TODO: Define Network Graph
-# np.random.seed(100)
+# np.random.seed(2538054150)
 # tf.set_random_seed(100)
+# random.seed(123)
+# print(np.random.get_state()[1][0])
+
 REWARD_DIM = 1
 DONE_DIM = 1
 learning_rate = 0.01
 hidden_units = 20
 rate_sam = 0.6
-refresh_target = 30
+refresh_target = 15
 ReplayMemory_size = 10000
 ReplayMemory = np.zeros((1, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
+lambd = 0.1
 
 def Store_State(ReplayMemory, ReplayMemory_size, s, a, r, s_, done):
     elements = np.expand_dims(np.hstack((s, a, r, s_, done)), axis = 0)
@@ -85,40 +88,20 @@ def NGraph(state_in, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_unit
             layer1 = tf.nn.relu(tf.matmul(state_in, W1) + b1)
 
         with tf.variable_scope("layer2"):
-            # with tf.variable_scope("Value"):
-            #     W3 = tf.get_variable(
-            #             "W3", 
-            #             shape=(hidden_units, 1), 
-            #             initializer=tf.random_normal_initializer(0, 0.3), 
-            #             collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-            #         )
-            #     b3 = tf.get_variable(
-            #             "b3", 
-            #             shape=(1, 1),
-            #             initializer=tf.constant_initializer(0.1), 
-            #             collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-            #         )
-            #     Value = tf.matmul(layer1, W3) + b3
-            
-            with tf.variable_scope("Advantage"):
-                W2 = tf.get_variable(
+            W2 = tf.get_variable(
                     "W2", 
                     shape=(hidden_units, ACTION_DIM), 
                     initializer=tf.random_normal_initializer(0, 0.3), 
                     collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
                 )
-                b2 = tf.get_variable(
-                        "b2", 
-                        shape=(1, ACTION_DIM), 
-                        initializer=tf.constant_initializer(0.1), 
-                        collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-                    )
-                Advantage = tf.matmul(layer1, W2) + b2
-
-        with tf.variable_scope("Q"):
-            # output = Value + (Advantage - tf.reduce_mean(Advantage, axis = 1, keepdims = True))
-            output = Advantage
-
+            b2 = tf.get_variable(
+                    "b2", 
+                    shape=(1, ACTION_DIM), 
+                    initializer=tf.constant_initializer(0.1), 
+                    collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
+                )
+            output = tf.matmul(layer1, W2) + b2
+            
     return output
 
 # TODO: Network outputs
@@ -128,10 +111,9 @@ q_action = tf.reduce_sum(tf.multiply(q_values, action_in), reduction_indices=1)
 
 # TODO: Loss/Optimizer Definition
 with tf.variable_scope("loss"):
-    loss = tf.reduce_sum(tf.square(target_in - q_action))
+    loss = tf.reduce_sum(tf.square(target_in - q_action)) + lambd * tf.add_n([tf.nn.l2_loss(v) for v in tf.get_collection("eval_net_params")])
 with tf.variable_scope("train"):
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
-
 
 # Start session - Tensorflow housekeeping
 session = tf.InteractiveSession()
@@ -181,7 +163,6 @@ for episode in range(EPISODE):
                                 next_state,
                                 int(done)
                             )
-
         if len(ReplayMemory) > round(1/rate_sam):
             s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, rate_sam)
 
