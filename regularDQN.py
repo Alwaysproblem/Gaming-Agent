@@ -14,7 +14,7 @@ TEST_FREQUENCY = 100  # Num episodes to run before visualizing test accuracy
 # TODO: HyperParameters
 GAMMA =  0.9 # discount factor
 INITIAL_EPSILON =  0.5 # starting value of epsilon
-FINAL_EPSILON =  0.1 # final value of epsilon
+FINAL_EPSILON =  0.18 # final value of epsilon
 EPSILON_DECAY_STEPS = 100 # decay period
 
 # Create environment
@@ -41,7 +41,7 @@ DONE_DIM = 1
 learning_rate = 0.01
 hidden_units = 30
 rate_sam = 0.1
-refresh_target = 50
+refresh_target = 30
 ReplayMemory_size = 10000
 ReplayMemory = np.zeros((1, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
 lambd = 0.5
