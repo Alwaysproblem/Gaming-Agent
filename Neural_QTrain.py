@@ -100,9 +100,13 @@ def NGraph(state_in, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_unit
             
     return output
 
+# def DoubleNN(state_in, ):
+#     pass
+
 # TODO: Network outputs
 q_values = NGraph(state_in)
 q_target = tf.identity(q_values)
+double_q_target = tf.identity(q_values)
 q_action = tf.reduce_sum(tf.multiply(q_values, action_in), reduction_indices=1)
 
 # TODO: Loss/Optimizer Definition
@@ -167,10 +171,17 @@ for episode in range(EPISODE):
                 state_in: ns_batch
             })
 
+            q_target_nn = double_q_target.eval(feed_dict={
+                state_in: ns_batch
+            })
+
+            # TODO: tansform action_t into one-hot coding.
+            action_t = np.max(nextstate_q_values, axis=1, keepdims=1)
+
             # TODO: Calculate the target q-value.
             # hint1: Bellman
             # hint2: consider if the episode has terminated
-            target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(nextstate_q_values, axis=1, keepdims=1) # need axis = 1
+            target_batch = r_batch + GAMMA * (1 - done_batch) * q_target_nn * action_t # need axis = 1
 
             target = target_batch.squeeze() if target_batch.shape != (1, 1) else [target_batch.squeeze()]
 
