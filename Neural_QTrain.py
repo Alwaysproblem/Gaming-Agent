@@ -3,6 +3,10 @@ import tensorflow as tf
 import numpy as np
 import random
 
+
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 # General Parameters
 # -- DO NOT MODIFY --
 ENV_NAME = 'CartPole-v0'
@@ -164,7 +168,9 @@ for episode in range(EPISODE):
                                 next_state,
                                 int(done)
                             )
-        if len(ReplayMemory) > round(1/rate_sam) and episode < 120:
+        
+        # if len(ReplayMemory) > round(1/rate_sam) and episode < 120:
+        if len(ReplayMemory) > round(1/rate_sam):
             s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, rate_sam)
 
             nextstate_q_values = q_target.eval(feed_dict={
@@ -176,12 +182,12 @@ for episode in range(EPISODE):
             })
 
             # TODO: tansform action_t into one-hot coding.
-            action_t = np.max(nextstate_q_values, axis=1, keepdims=1)
+            action_index = np.argmax(nextstate_q_values, axis=1)
+            
+            action_n = np.zeros_like(a_batch)
+            action_n[[j for j in range(nextstate_q_values.shape[0])], action_index] = 1
 
-            # TODO: Calculate the target q-value.
-            # hint1: Bellman
-            # hint2: consider if the episode has terminated
-            target_batch = r_batch + GAMMA * (1 - done_batch) * q_target_nn * action_t # need axis = 1
+            target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(q_target_nn * action_n, axis=1, keepdims=1) # need axis = 1
 
             target = target_batch.squeeze() if target_batch.shape != (1, 1) else [target_batch.squeeze()]
 
