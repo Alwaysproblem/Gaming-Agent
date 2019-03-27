@@ -1,3 +1,6 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 import gym
 import tensorflow as tf
 import numpy as np
@@ -13,7 +16,7 @@ TEST_FREQUENCY = 100  # Num episodes to run before visualizing test accuracy
 
 # TODO: HyperParameters
 GAMMA =  0.9 # discount factor
-INITIAL_EPSILON =  0.6 # starting value of epsilon
+INITIAL_EPSILON =  0.9 # starting value of epsilon
 FINAL_EPSILON =  0.1 # final value of epsilon
 EPSILON_DECAY_STEPS = 100 # decay period
 
@@ -31,54 +34,80 @@ action_in = tf.placeholder("float", [None, ACTION_DIM])
 target_in = tf.placeholder("float", [None])
 
 # TODO: Define Network Graph
-tf.set_random_seed(1)
-learning_rate = 0.1
-hidden_units = 14
-fix_target_epsiodes = 5000
-ReplayMemory_size = 50
-ReplayMemory = np.zeros((ReplayMemory_size, STATE_DIM)) # just for experience replay.
+# np.random.seed(100)
+# tf.set_random_seed(100)
+REWARD_DIM = 1
+DONE_DIM = 1
+learning_rate = 0.001
+hidden_units = 20
+rate_sam = 0.6
+refresh_target = 25
+ReplayMemory_size = 10000
+ReplayMemory = np.zeros((1, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
 
-def NGraph(state_in, params_name, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 20):
-    with tf.variable_scope("layer1"):
-        W1 = tf.get_variable(
-                "W1", 
-                shape=(STATE_DIM, hidden_units), 
-                initializer=tf.random_normal_initializer(0, 0.3), 
-                collections=[params_name, tf.GraphKeys.GLOBAL_VARIABLES]
-            )
-        b1 = tf.get_variable(
-                "b1", 
-                shape=(1, hidden_units), 
-                initializer=tf.constant_initializer(0.1), 
-                collections=[params_name, tf.GraphKeys.GLOBAL_VARIABLES]
-            )
-        layer1 = tf.nn.relu(tf.matmul(state_in, W1) + b1)
+def Store_State(ReplayMemory, ReplayMemory_size, s, a, r, s_, done):
+    elements = np.expand_dims(np.hstack((s, a, r, s_, done)), axis = 0)
+    ReplayMemory = np.concatenate((ReplayMemory, elements), 0)
+    if not any(ReplayMemory[0, :]) or len(ReplayMemory) > ReplayMemory_size:
+        ReplayMemory = np.delete(ReplayMemory, 0, axis=0)
+    full = any(ReplayMemory[0, :])
+    return ReplayMemory, full
 
-    with tf.variable_scope("layer2"):
-        W2 = tf.get_variable(
-                "W2", 
-                shape=(hidden_units, ACTION_DIM), 
-                initializer=tf.random_normal_initializer(0, 0.3), 
-                collections=[params_name, tf.GraphKeys.GLOBAL_VARIABLES]
-            )
-        b2 = tf.get_variable(
-                "b2", 
-                shape=(1, ACTION_DIM), 
-                initializer=tf.constant_initializer(0.1), 
-                collections=[params_name, tf.GraphKeys.GLOBAL_VARIABLES]
-            )
-        output = tf.matmul(layer1, W2) + b2
+def Sample_State(ReplayMemory, sample_percent, replace = False):
+    sample_num = round(len(ReplayMemory) * sample_percent)
+    ind = np.random.choice(range(len(ReplayMemory)), sample_num, replace = replace)
+    Sample_batch = ReplayMemory[ind, :]
+    s = Sample_batch[:, : STATE_DIM]
+    a = Sample_batch[:, STATE_DIM: STATE_DIM + ACTION_DIM]
+    r = Sample_batch[:, STATE_DIM + ACTION_DIM : STATE_DIM + ACTION_DIM + REWARD_DIM]
+    s_ = Sample_batch[:, STATE_DIM + ACTION_DIM + REWARD_DIM : STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM]
+    done = Sample_batch[:, -1:]
+
+    return s, a, r, s_, done
+
+def NGraph(state_in, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 14):
+    """
+    the input state is row vector.
+    the output is also a vector.
+    """
+    with tf.variable_scope("eval_net"):
+        with tf.variable_scope("layer1"):
+            W1 = tf.get_variable(
+                    "W1", 
+                    shape=(STATE_DIM, hidden_units), 
+                    initializer=tf.random_normal_initializer(0, 0.3), 
+                    collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
+                )
+            b1 = tf.get_variable(
+                    "b1", 
+                    shape=(1, hidden_units), 
+                    initializer=tf.constant_initializer(0.1), 
+                    collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
+                )
+            layer1 = tf.nn.relu(tf.matmul(state_in, W1) + b1)
+
+        with tf.variable_scope("layer2"):
+            W2 = tf.get_variable(
+                    "W2", 
+                    shape=(hidden_units, ACTION_DIM), 
+                    initializer=tf.random_normal_initializer(0, 0.3), 
+                    collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
+                )
+            b2 = tf.get_variable(
+                    "b2", 
+                    shape=(1, ACTION_DIM), 
+                    initializer=tf.constant_initializer(0.1), 
+                    collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
+                )
+            output = tf.matmul(layer1, W2) + b2
+            
     return output
 
 # TODO: Network outputs
-with tf.variable_scope("eval_net"):
-    q_values = NGraph(state_in, 'eval_net_params')
-
-with tf.variable_scope("target_net"):
-    q_values_target = NGraph(state_in, 'target_net_params')
-
+q_values = NGraph(state_in)
+q_target = tf.identity(q_values)
+double_q_target = tf.identity(q_values)
 q_action = tf.reduce_sum(tf.multiply(q_values, action_in), reduction_indices=1)
-
 
 # TODO: Loss/Optimizer Definition
 with tf.variable_scope("loss"):
@@ -125,27 +154,46 @@ for episode in range(EPISODE):
         action = explore(state, epsilon)
         next_state, reward, done, _ = env.step(np.argmax(action))
 
-        nextstate_q_values = q_values_target.eval(feed_dict={
-            state_in: [next_state]
-        })
+        # store the state as tuple (s, a, r, s_, done)
+        ReplayMemory, full = Store_State(
+                                ReplayMemory,
+                                ReplayMemory_size,
+                                state,
+                                action,
+                                reward,
+                                next_state,
+                                int(done)
+                            )
+        if len(ReplayMemory) > round(1/rate_sam):#and episode < 120:
+            s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, rate_sam)
 
-        if episode * step % fix_target_epsiodes == 0 and 0 not in (episode, step):
-            t_params = tf.get_collection('target_net_params')
-            e_params = tf.get_collection('eval_net_params')
-            replace_target_op = [tf.assign(t, e) for t, e in zip(t_params, e_params)]
-            session.run(replace_target_op)
+            nextstate_q_values = q_target.eval(feed_dict={
+                state_in: ns_batch
+            })
 
-        # TODO: Calculate the target q-value.
-        # hint1: Bellman
-        # hint2: consider if the episode has terminated
-        target = reward if done else reward + GAMMA * np.max(nextstate_q_values)
+            q_target_nn = double_q_target.eval(feed_dict={
+                state_in: ns_batch
+            })
 
-        # Do one training step
-        lossf, _ = session.run([loss, optimizer], feed_dict={
-            target_in: [target],
-            action_in: [action],
-            state_in: [state]
-        })
+            # TODO: tansform action_t into one-hot coding.
+            action_index = np.argmax(nextstate_q_values, axis=1)
+            
+            action_n = np.zeros_like(a_batch)
+            action_n[[j for j in range(nextstate_q_values.shape[0])], action_index] = 1
+
+            target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(q_target_nn * action_n, axis=1, keepdims=1) # need axis = 1
+
+            target = target_batch.squeeze() if target_batch.shape != (1, 1) else [target_batch.squeeze()]
+
+            # Do one training step
+            loss_ , _ = session.run([loss, optimizer], feed_dict={
+                target_in: target,
+                action_in: a_batch,
+                state_in: s_batch
+            })
+
+            if step % refresh_target == 0:
+                q_target = tf.identity(q_values)
 
         # Update
         state = next_state
@@ -168,8 +216,6 @@ for episode in range(EPISODE):
                 if done:
                     break
         ave_reward = total_reward / TEST
-
-        print('loss:', lossf)
         print('episode:', episode, 'epsilon:', epsilon, 'Evaluation '
                                                         'Average Reward:', ave_reward)
 
