@@ -1,11 +1,10 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 import gym
 import tensorflow as tf
 import numpy as np
 import random
-
-
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # General Parameters
 # -- DO NOT MODIFY --
@@ -104,9 +103,6 @@ def NGraph(state_in, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_unit
             
     return output
 
-# def DoubleNN(state_in, ):
-#     pass
-
 # TODO: Network outputs
 q_values = NGraph(state_in)
 q_target = tf.identity(q_values)
@@ -168,9 +164,7 @@ for episode in range(EPISODE):
                                 next_state,
                                 int(done)
                             )
-        
-        # if len(ReplayMemory) > round(1/rate_sam) and episode < 120:
-        if len(ReplayMemory) > round(1/rate_sam):
+        if len(ReplayMemory) > round(1/rate_sam):#and episode < 120:
             s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, rate_sam)
 
             nextstate_q_values = q_target.eval(feed_dict={
