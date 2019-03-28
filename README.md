@@ -6,6 +6,7 @@ Because this project are not operating on raw pixel values but already encoded s
 
 ### CartPoleV0 (Randomize Agent):
 ![Randomize](img/Random.gif)
+
 From [OpenAi gym](https://gym.openai.com/envs/CartPole-v1/)
 
 ### CartPoleV0 (after 100 iteration through DQN):
