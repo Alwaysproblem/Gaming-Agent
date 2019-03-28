@@ -4,6 +4,13 @@ In this Project we will implement a Deep Reinforcement Learning algorithm on a c
 
 Because this project are not operating on raw pixel values but already encoded state values, the training time for this assignment is relatively short, and each training run should only require approximately 15 minutes on a standard laptop PC.
 
+### CartPoleV0 (Randomize Agent):
+![Randomize](img/Random.gif)
+From [OpenAi gym](https://gym.openai.com/envs/CartPole-v1/)
+
+### CartPoleV0 (after 100 iteration through DQN):
+![DDQN](img/DoubleDQN.gif)
+
 ## Code Structure
 #### Placeholders:
 ```state_in```: the current state of the environment, which is represented in our case as a sequence of reals.
