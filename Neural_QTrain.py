@@ -6,6 +6,8 @@ import tensorflow as tf
 import numpy as np
 import random
 
+Dense = tf.layers.Dense
+
 # General Parameters
 # -- DO NOT MODIFY --
 ENV_NAME = 'CartPole-v0'
@@ -15,7 +17,7 @@ TEST = 10  # The number of tests to run every TEST_FREQUENCY episodes
 TEST_FREQUENCY = 100  # Num episodes to run before visualizing test accuracy
 
 # TODO: HyperParameters
-GAMMA =  0.9 # discount factor
+GAMMA =  0.95 # discount factor
 INITIAL_EPSILON =  0.9 # starting value of epsilon
 FINAL_EPSILON =  0.1 # final value of epsilon
 EPSILON_DECAY_STEPS = 100 # decay period
@@ -65,42 +67,18 @@ def Sample_State(ReplayMemory, sample_percent, replace = False):
 
     return s, a, r, s_, done
 
+
 def NGraph(state_in, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 14):
     """
     the input state is row vector.
     the output is also a vector.
     """
-    with tf.variable_scope("eval_net"):
-        with tf.variable_scope("layer1"):
-            W1 = tf.get_variable(
-                    "W1", 
-                    shape=(STATE_DIM, hidden_units), 
-                    initializer=tf.random_normal_initializer(0, 0.3), 
-                    collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-                )
-            b1 = tf.get_variable(
-                    "b1", 
-                    shape=(1, hidden_units), 
-                    initializer=tf.constant_initializer(0.1), 
-                    collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-                )
-            layer1 = tf.nn.relu(tf.matmul(state_in, W1) + b1)
 
-        with tf.variable_scope("layer2"):
-            W2 = tf.get_variable(
-                    "W2", 
-                    shape=(hidden_units, ACTION_DIM), 
-                    initializer=tf.random_normal_initializer(0, 0.3), 
-                    collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-                )
-            b2 = tf.get_variable(
-                    "b2", 
-                    shape=(1, ACTION_DIM), 
-                    initializer=tf.constant_initializer(0.1), 
-                    collections=['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-                )
-            output = tf.matmul(layer1, W2) + b2
-            
+    pred = Dense(hidden_units, activation=tf.nn.relu, kernel_initializer=tf.random_normal_initializer(mean=0., stddev=0.5, seed = 1), bias_initializer=tf.constant_initializer(0.1))(state_in)
+    # pred = Dense(hidden_units, activation=tf.nn.relu, kernel_initializer=tf.random_normal_initializer(mean=0., stddev=0.3, seed = 1), bias_initializer=tf.constant_initializer(0.1))(state_in)
+    # pred = Dense(hidden_units, activation=tf.nn.relu, kernel_initializer=tf.random_normal_initializer(mean=0., stddev=0.3, seed = 1), bias_initializer=tf.constant_initializer(0.1))(state_in)
+    output = Dense(ACTION_DIM, kernel_initializer=tf.random_normal_initializer(mean=0., stddev=0.5, seed = 1), bias_initializer=tf.constant_initializer(0.1))(pred)
+
     return output
 
 # TODO: Network outputs
