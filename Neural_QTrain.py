@@ -7,9 +7,9 @@ import tensorflow as tf
 import numpy as np
 import random
 
-from queue import PriorityQueue as PQ
+from tensorflow.layers import Dense, Dropout
 
-Dense = tf.layers.Dense
+from queue import PriorityQueue as PQ
 
 # General Parameters
 # -- DO NOT MODIFY --
@@ -48,7 +48,8 @@ hidden_units = 20
 rate_sam = 0.8
 batch_size = 256
 refresh_target = 25
-capacity = 2 ** 12
+capacity = 2 ** 14
+dropout = 0.4
 
 #%%
 class SumTree(object):
@@ -181,13 +182,14 @@ class ReplayMemory():
 
 
 #%%
-def NGraph(state_in, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 14):
+def NGraph(state_in, STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 100):
     """
     the input state is row vector.
     the output is also a vector.
     """
 
     pred = Dense(hidden_units, activation=tf.nn.relu, kernel_initializer=tf.random_normal_initializer(mean=0., stddev=0.5, seed = 1), bias_initializer=tf.constant_initializer(0.1))(state_in)
+    pred = Dropout(rate=dropout)(pred)
     output = Dense(ACTION_DIM, kernel_initializer=tf.random_normal_initializer(mean=0., stddev=0.5, seed = 1), bias_initializer=tf.constant_initializer(0.1))(pred)
 
     return output
