@@ -1,4 +1,5 @@
-# The assignment 3 for 9444 18s2
+# Gaming Agent
+## The assignment 3 for 9444 18s2
 ## Introdution
 In this Project we will implement a Deep Reinforcement Learning algorithm on a classic control task in the OpenAI AI-Gym Environment. Specifically, we will implement Q-Learning using a Neural Network as an approximator for the Q-function.
 
