@@ -156,13 +156,13 @@ for episode in range(EPISODE):
 
             
             # Do one training step
-            loss_ = q_values.train_on_batch({"state": s_batch, "action": a_batch}, target)
+            # q_values.fit({"state": s_batch, "action": a_batch}, target, epochs = 1)
+            q_values.train_on_batch({"state": s_batch, "action": a_batch}, target)
                 # loss_ , _ = session.run([loss, optimizer], feed_dict={
                 #     target_in: target,
                 #     action_in: a_batch,
                 #     state_in: s_batch
                 # })
-            tf.print(loss_) 
 
             if step % refresh_target == 0:
                 q_target.set_weights(q_values.get_weights())
