@@ -1,3 +1,4 @@
+#%%
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -7,7 +8,9 @@ import numpy as np
 import random
 from tensorflow.keras import layers, Input
 
-tf.config.experimental_run_functions_eagerly(True)
+# tf.config.experimental_run_functions_eagerly(True)
+tf.keras.backend.set_floatx('float64')
+#%%
 # General Parameters
 # -- DO NOT MODIFY --
 ENV_NAME = 'CartPole-v0'
@@ -39,6 +42,7 @@ refresh_target = 25
 ReplayMemory_size = 10000
 ReplayMemory = np.zeros((1, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
 
+#%%
 def Store_State(ReplayMemory, ReplayMemory_size, s, a, r, s_, done):
     elements = np.expand_dims(np.hstack((s, a, r, s_, done)), axis = 0)
     ReplayMemory = np.concatenate((ReplayMemory, elements), 0)
@@ -58,7 +62,7 @@ def Sample_State(ReplayMemory, sample_percent, replace = False):
     done = Sample_batch[:, -1:]
 
     return s, a, r, s_, done
-
+#%%
 
 def NGraph(STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 14):
     inputs = Input(name="state", shape=(STATE_DIM,))
@@ -67,30 +71,30 @@ def NGraph(STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 14):
 
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
     return model
-
+#%%
 # TODO: Network outputs
 q_values = NGraph()
 q_target = tf.keras.models.clone_model(q_values)
 
-# def Eloss(pred, label, action_in):
-#     q_action = tf.reduce_sum(tf.multiply(pred, action_in), reduction_indices=1)
-#     loss = tf.reduce_sum(tf.square(label - q_action))
-
-#     return loss
-
-# # TODO: Loss/Optimizer Definition
-# with tf.variable_scope("loss"):
-#     loss = tf.reduce_sum(tf.square(target_in - q_action))
-# with tf.variable_scope("train"):
-
+#%%
+# @tf.function
 def Loss(pred, label, action_in):
     q_action = tf.math.reduce_sum(pred*action_in, axis = 1)
     loss = tf.reduce_sum(tf.square(label - q_action))
 
     return loss
-
-opt = tf.keras.optimizers.Adam(0.1)
-
+#%%
+opt = tf.keras.optimizers.Adam(learning_rate)
+#%%
+def train(opt, Loss_fun, model, inputs, label, action_in):
+    def loss_graph():
+        with tf.GradientTape():
+            closs = Loss_fun(model(inputs, training=True), label, action_in)
+            tf.print(closs)
+        return closs
+    opt.minimize(loss_graph, model.trainable_variables)
+    # return Loss_fun(model(inputs), label, action_in)
+    return 
 
 # 1. change the struchture of NN  Q(s, a) when prediction set a  = ones(1, action_dim)
 # 2. NN: Q(s) = a, change loss
@@ -102,7 +106,7 @@ def explore(state, epsilon):
     and assuming the network has already been defined, decide which action to
     take using e-greedy exploration based on the current q-value estimates.
     """
-    Q_estimates = q_values(np.array([state]))
+    Q_estimates = q_values.predict(np.array([state]), batch_size = 1)
     if random.random() <= epsilon:
         action = random.randint(0, ACTION_DIM - 1)
     else:
@@ -142,25 +146,20 @@ for episode in range(EPISODE):
 
             nextstate_q_values = q_target.predict(ns_batch)
 
-            # q_target_nn = double_q_target.predict(ns_batch)
-
-            # TODO: tansform action_t into one-hot coding.
-            action_index = np.argmax(nextstate_q_values, axis=1)
-            
-            action_n = np.zeros_like(a_batch)
-            action_n[[j for j in range(nextstate_q_values.shape[0])], action_index] = 1
-
-            target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(q_target_nn * action_n, axis=1, keepdims=1) # need axis = 1
+            target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(nextstate_q_values, axis=1, keepdims=1) # need axis = 1
 
             target = target_batch.squeeze() if target_batch.shape != (1, 1) else [target_batch.squeeze()]
 
             
             # Do one training step
-            loss_ , _ = session.run([loss, optimizer], feed_dict={
-                target_in: target,
-                action_in: a_batch,
-                state_in: s_batch
-            })
+            train(opt, Loss, q_values, s_batch, target, a_batch)
+            # loss_ = train(opt, Loss, q_values, s_batch, target, a_batch)
+                # loss_ , _ = session.run([loss, optimizer], feed_dict={
+                #     target_in: target,
+                #     action_in: a_batch,
+                #     state_in: s_batch
+                # })
+            # tf.print(loss_)
 
             if step % refresh_target == 0:
                 q_target.set_weights(q_values.get_weights())
@@ -178,9 +177,7 @@ for episode in range(EPISODE):
             state = env.reset()
             for j in range(STEP):
                 env.render()
-                action = np.argmax(q_values.eval(feed_dict={
-                    state_in: [state]
-                }))
+                action = np.argmax(q_values.predict(np.array([state])))
                 state, reward, done, _ = env.step(action)
                 total_reward += reward
                 if done:
@@ -190,3 +187,6 @@ for episode in range(EPISODE):
                                                         'Average Reward:', ave_reward)
 
 env.close()
+
+
+# %%
