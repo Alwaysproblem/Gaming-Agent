@@ -80,7 +80,7 @@ q_target = tf.keras.models.clone_model(q_values)
 # @tf.function
 def Loss(pred, label, action_in):
     q_action = tf.math.reduce_sum(pred*action_in, axis = 1)
-    loss = tf.reduce_sum(tf.square(label - q_action))
+    loss = tf.reduce_mean(tf.square(label - q_action))
 
     return loss
 #%%

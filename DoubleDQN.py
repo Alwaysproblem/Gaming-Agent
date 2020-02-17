@@ -37,7 +37,7 @@ REWARD_DIM = 1
 DONE_DIM = 1
 learning_rate = 0.001
 hidden_units = 20
-rate_sam = 0.6
+rate_sam = 0.06
 refresh_target = 25
 ReplayMemory_size = 10000
 ReplayMemory = np.zeros((1, STATE_DIM + ACTION_DIM + REWARD_DIM + STATE_DIM + DONE_DIM)) # just for experience replay.
@@ -82,7 +82,7 @@ double_q = tf.keras.models.clone_model(q_values)
 # @tf.function
 def Loss(pred, label, action_in):
     q_action = tf.math.reduce_sum(pred*action_in, axis = 1)
-    loss = tf.reduce_sum(tf.square(label - q_action))
+    loss = tf.reduce_mean(tf.square(label - q_action))
 
     return loss
 #%%
@@ -93,7 +93,7 @@ def train(opt, Loss_fun, model, inputs, label, action_in):
         # if tf.config.list_physical_devices
         with tf.GradientTape():
             closs = Loss_fun(model(inputs, training=True), label, action_in)
-            # tf.print(closs)
+            tf.print(closs)
         return closs
     opt.minimize(loss_graph, model.trainable_variables)
     # return Loss_fun(model(inputs), label, action_in)
@@ -193,8 +193,9 @@ for episode in range(EPISODE):
                 if done:
                     break
         ave_reward = total_reward / TEST
-        print('episode:', episode, 'epsilon:', epsilon, 'Evaluation '
-                                                        'Average Reward:', ave_reward)
+        with open("out.txt", 'w') as fp:
+            print('episode:', episode, 'epsilon:', epsilon, 'Evaluation '
+                                                        'Average Reward:', ave_reward, file=fp)
 
 env.close()
 
