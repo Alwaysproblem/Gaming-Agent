@@ -149,7 +149,7 @@ for episode in range(EPISODE):
 
 
             # Q1 -> r + Q2()
-            nextstate_q_values = q_target.predict(ns_batch)
+            nextstate_q_values = q_values.predict(ns_batch)
 
             Q_values = double_q.predict(ns_batch)
 
@@ -166,20 +166,19 @@ for episode in range(EPISODE):
             train(opt, Loss, q_values, s_batch, target, a_batch)
 
             # Q2 -> r + Q1()
-            nextstate_q_values = double_q.predict(ns_batch)
-            Q_values = q_target.predict(ns_batch)
-            action_index = np.argmax(nextstate_q_values, axis = -1)
+            action_index = np.argmax(Q_values, axis = -1)
+
             action_n = np.zeros_like(a_batch)
             action_n[[j for j in range(nextstate_q_values.shape[0])], action_index] = 1
 
-            Q_double = action_n * Q_values
+            Q_double = action_n * nextstate_q_values
             target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(Q_double, axis=1, keepdims=1) # need axis = 1
             target = target_batch.squeeze() if target_batch.shape != (1, 1) else [target_batch.squeeze()]
 
             train(opt, Loss, double_q, s_batch, target, a_batch)
 
-            if step % refresh_target == 0:
-                q_target.set_weights(q_values.get_weights())
+            # if step % refresh_target == 0:
+            #     q_target.set_weights(q_values.get_weights())
                 # print(f"episode: {episode} - step: {step}, refresh Q_target.")
 
         # Update
