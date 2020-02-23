@@ -164,8 +164,8 @@ for episode in range(EPISODE):
 
             # Do one training step
             # q_values.fit({"state": s_batch, "action": a_batch}, target, epochs = 1)
-            q_values.train_on_batch({"state": s_batch, "action": a_batch}, target)
-            print(q_values.loss)
+            losses_q = q_values.train_on_batch({"state": s_batch, "action": a_batch}, target)
+            print(losses_q)
 
             if step % refresh_target == 0:
                 q_target.set_weights(q_values.get_weights())
