@@ -62,6 +62,7 @@ def Sample_State(ReplayMemory, sample_percent, replace = False):
     done = Sample_batch[:, -1:]
 
     return s, a, r, s_, done
+
 #%%
 
 def NGraph(STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 14):
@@ -71,11 +72,11 @@ def NGraph(STATE_DIM = STATE_DIM, ACTION_DIM = ACTION_DIM, hidden_units = 14):
 
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
     return model
+
 #%%
 # TODO: Network outputs
 q_values = NGraph()
 q_target = tf.keras.models.clone_model(q_values)
-
 #%%
 # @tf.function
 def Loss(pred, label, action_in):
@@ -88,6 +89,7 @@ opt = tf.keras.optimizers.Adam(learning_rate)
 #%%
 def train(opt, Loss_fun, model, inputs, label, action_in):
     def loss_graph():
+        # if tf.config.list_physical_devices
         with tf.GradientTape():
             closs = Loss_fun(model(inputs, training=True), label, action_in)
             tf.print(closs)
@@ -96,7 +98,7 @@ def train(opt, Loss_fun, model, inputs, label, action_in):
     # return Loss_fun(model(inputs), label, action_in)
     return 
 
-# 1. change the struchture of NN  Q(s, a) when prediction set a  = ones(1, action_dim)
+# 1. change the struchture of NN  Q(s, a) when prediction set a = ones(1, action_dim)
 # 2. NN: Q(s) = a, change loss
 
 # -- DO NOT MODIFY ---
@@ -106,16 +108,16 @@ def explore(state, epsilon):
     and assuming the network has already been defined, decide which action to
     take using e-greedy exploration based on the current q-value estimates.
     """
-    Q_estimates = q_values.predict(np.array([state]), batch_size = 1)
     if random.random() <= epsilon:
         action = random.randint(0, ACTION_DIM - 1)
     else:
+        Q_estimates = q_values.predict(np.array([state]), batch_size = 1)
         action = np.argmax(Q_estimates)
     one_hot_action = np.zeros(ACTION_DIM)
     one_hot_action[action] = 1
     return one_hot_action
 
-open("out_DQN.txt", "w").close()
+open("out_DDQN.txt", "w").close()
 
 # Main learning loop
 for episode in range(EPISODE):
@@ -141,29 +143,33 @@ for episode in range(EPISODE):
                                 next_state,
                                 int(done)
                             )
+
         if len(ReplayMemory) > round(1/rate_sam):#and episode < 120:
             s_batch, a_batch, r_batch, ns_batch, done_batch = Sample_State(ReplayMemory, rate_sam)
 
 
-            nextstate_q_values = q_target.predict(ns_batch)
+            # Q1 -> r + Q2()
+            nextstate_q_target = q_target.predict(ns_batch)
 
-            target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(nextstate_q_values, axis=1, keepdims=1) # need axis = 1
+            nextstate_q_values = q_values.predict(ns_batch)
+
+            action_index = np.argmax(nextstate_q_values, axis = -1)
+
+            action_n = np.zeros_like(a_batch)
+            action_n[[j for j in range(nextstate_q_values.shape[0])], action_index] = 1
+
+            Q_double = action_n * nextstate_q_target
+
+            target_batch = r_batch + GAMMA * (1 - done_batch) * np.max(Q_double, axis=1, keepdims=1) # need axis = 1
 
             target = target_batch.squeeze() if target_batch.shape != (1, 1) else [target_batch.squeeze()]
 
-            
             # Do one training step
             train(opt, Loss, q_values, s_batch, target, a_batch)
-            # loss_ = train(opt, Loss, q_values, s_batch, target, a_batch)
-                # loss_ , _ = session.run([loss, optimizer], feed_dict={
-                #     target_in: target,
-                #     action_in: a_batch,
-                #     state_in: s_batch
-                # })
-            # tf.print(loss_)
 
             if step % refresh_target == 0:
                 q_target.set_weights(q_values.get_weights())
+                # print(f"episode: {episode} - step: {step}, refresh Q_target.")
 
         # Update
         state = next_state
@@ -184,7 +190,7 @@ for episode in range(EPISODE):
                 if done:
                     break
         ave_reward = total_reward / TEST
-        with open("out_DQN.txt", "a") as fp:
+        with open("out_DDQN.txt", "a") as fp:
             print('episode:', episode, 'epsilon:', epsilon, 'Evaluation '
                                                         'Average Reward:', ave_reward, file=fp)
 
