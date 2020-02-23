@@ -9,7 +9,7 @@ import random
 from tensorflow.keras import layers, Input
 
 tf.config.experimental_run_functions_eagerly(True)
-tf.keras.backend.set_floatx('float64')
+tf.keras.backend.set_floatx('float32')
 #%%
 # General Parameters
 # -- DO NOT MODIFY --
