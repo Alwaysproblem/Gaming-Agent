@@ -8,7 +8,7 @@ import numpy as np
 import random
 from tensorflow.keras import layers, Input
 
-tf.config.experimental_run_functions_eagerly(True)
+# tf.config.experimental_run_functions_eagerly(True)
 tf.keras.backend.set_floatx('float64')
 #%%
 # General Parameters
@@ -200,7 +200,7 @@ for episode in range(EPISODE):
                 if done:
                     break
         ave_reward = total_reward / TEST
-        with open("out.txt", 'w') as fp:
+        with open("out_DDQN.txt", 'w') as fp:
             print('episode:', episode, 'epsilon:', epsilon, 'Evaluation '
                                                         'Average Reward:', ave_reward, file=fp)
 

@@ -190,7 +190,7 @@ for episode in range(EPISODE):
                 if done:
                     break
         ave_reward = total_reward / TEST
-        with open("out_DQN.txt", "a") as fp:
+        with open("out_DDQN.txt", "a") as fp:
             print('episode:', episode, 'epsilon:', epsilon, 'Evaluation '
                                                         'Average Reward:', ave_reward, file=fp)
 
